@@ -1,57 +1,72 @@
-<script setup>
+<script setup lang="ts">
+import { ref } from "vue"
+import { useRoute } from "vue-router";
+import axios from "axios";
+
+type Player = 'X' | 'O' | null;
+
+let route = useRoute()
+let gameId = route.params.id
+const status = ref < string > ('playing');
+
+const board = ref < Player[][] > ([
+  [null, null, null],
+  [null, null, null],
+  [null, null, null],
+
+])
+
+// Преобразуем строку с сервера в board 3x3
+const parseBoard = (boardStr: string) => {
+  const arr: Player[] = boardStr.split('').map(c => c === '-' ? null : c as Player);
+  board.value = [
+    arr.slice(0, 3),
+    arr.slice(3, 6),
+    arr.slice(6, 9)
+  ];
+};
+const makeMove = async (x: number, y: number) => {
+  if (!gameId || board.value[x][y] !== null || status.value !== 'playing') return;
+
+  const index = x * 3 + y;
+
+
+  try {
+    const res = await axios.post(`http://localhost:3000/tic-tac-toe/move/${gameId}`, { index });
+    parseBoard(res.data.board);
+    status.value = res.data.status;
+    // меняем ход на игрока, но сервер уже ставит X/O
+  } catch (e: any) {
+    alert(e?.response?.data?.message || e.message);
+  }
+};
 </script>
 
 <template>
-  <main class="relative min-h-screen bg-gradient-to-b from-purple-900 via-indigo-900 to-black text-white overflow-hidden flex flex-col items-center justify-center p-6">
+  <div
+    class="min-h-screen flex flex-col items-center justify-center bg-gray-900 from-gray-700 via-gray-800 to-gray-900 text-white p-6">
+    <h1 class="text-4xl md:text-5xl font-extrabold mt-10 drop-shadow-lg text-purple-400">Tic-Tac-Toe</h1>
 
-    <!-- Stars background -->
-    <div class="absolute inset-0">
-      <div class="absolute w-full h-full animate-starfield bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]"></div>
+    <h3 class="text-2xl mb-6 font-semibold flex items-center gap-3" v-if="status === 'playing'">Ход игрока <span
+        class=" text-blue-500 text-4xl">{{
+          player }}</span></h3>
+
+    <div class="flex flex-col gap-4 items-center mb-6 bg-black/100 p-6 rounded-xl shadow-2xl">
+      <div v-for="(row, x) in board" :key="x" class="flex gap-4">
+        <div v-for="(cell, y) in row" :key="y" @click="makeMove(x, y)"
+          class="w-24 h-24 md:w-28 md:h-28 bg-white/10 hover:bg-white/20 transition-colors duration-300 flex items-center justify-center text-5xl md:text-6xl font-bold cursor-pointer rounded-lg shadow-inner">
+          {{ cell === "X" ? "❌" : cell === "O" ? "⭕️" : "" }}
+        </div>
+      </div>
     </div>
 
-    <!-- Game Card -->
-    <div class="relative z-10 bg-gradient-to-r from-indigo-900 via-purple-800 to-black p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-6">
+    <h2 v-if="status !== 'playing'" class="text-3xl md:text-4xl font-bold text-green-400 mb-4 drop-shadow-lg">
+      {{ status === 'won' ? 'Вы выиграли!' : status === 'lost' ? 'Робот выиграл!' : 'Ничья!' }}
+    </h2>
 
-      <h1 class="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-pink-400 via-purple-500 to-indigo-400">
-        Game ID: 123-abc
-      </h1>
-
-      <div class="text-lg text-gray-300">
-        Players: <span class="text-pink-400 font-semibold">Azamat</span> vs <span class="text-purple-400 font-semibold">Elderbew</span>
-      </div>
-
-      <!-- Tic-Tac-Toe Board -->
-      <div class="grid grid-cols-3 gap-4 mt-4">
-        <button class="w-20 h-20 bg-gray-800 border border-gray-600 rounded shadow-lg text-3xl font-bold hover:bg-gray-700 transition"></button>
-        <button class="w-20 h-20 bg-gray-800 border border-gray-600 rounded shadow-lg text-3xl font-bold hover:bg-gray-700 transition"></button>
-        <button class="w-20 h-20 bg-gray-800 border border-gray-600 rounded shadow-lg text-3xl font-bold hover:bg-gray-700 transition"></button>
-
-        <button class="w-20 h-20 bg-gray-800 border border-gray-600 rounded shadow-lg text-3xl font-bold hover:bg-gray-700 transition"></button>
-        <button class="w-20 h-20 bg-gray-800 border border-gray-600 rounded shadow-lg text-3xl font-bold hover:bg-gray-700 transition"></button>
-        <button class="w-20 h-20 bg-gray-800 border border-gray-600 rounded shadow-lg text-3xl font-bold hover:bg-gray-700 transition"></button>
-
-        <button class="w-20 h-20 bg-gray-800 border border-gray-600 rounded shadow-lg text-3xl font-bold hover:bg-gray-700 transition"></button>
-        <button class="w-20 h-20 bg-gray-800 border border-gray-600 rounded shadow-lg text-3xl font-bold hover:bg-gray-700 transition"></button>
-        <button class="w-20 h-20 bg-gray-800 border border-gray-600 rounded shadow-lg text-3xl font-bold hover:bg-gray-700 transition"></button>
-      </div>
-
-    </div>
-
-  </main>
+    <RouterLink to="/games/create"
+      class=" cursor-pointer mt-4 px-6 py-3 bg-red-400 text-black font-semibold rounded-xl hover:bg-red-500 transition-colors duration-300 shadow-lg">
+      Сбросить игру
+    </RouterLink>
+  </div>
 </template>
-
-<style>
-@keyframes starfield {
-  0% { background-position: 0 0; }
-  100% { background-position: -1000px 1000px; }
-}
-
-.animate-starfield {
-  animation: starfield 200s linear infinite;
-}
-
-@keyframes glow {
-  0% { text-shadow: 0 0 10px #ff79c6, 0 0 20px #bd93f9, 0 0 30px #8be9fd; }
-  100% { text-shadow: 0 0 20px #ff79c6, 0 0 40px #bd93f9, 0 0 60px #8be9fd; }
-}
-</style>
